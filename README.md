@@ -37,7 +37,8 @@ vibe hud gives Claude Code a fast, ambient control surface on macOS. Instead of 
 - Send replies back to Claude sessions from the HUD
 - Works with tmux, Terminal.app, iTerm2, and Ghostty
 - Choose your display, sound, Claude directory, and startup behavior
-- Built-in update checks and installs through Sparkle
+- Check and install signed updates from the notch
+- Claude and Codex quota rings, Codex text generation speed, and optional Tibo announcements beside the session HUD
 
 ## Main workflows
 
@@ -66,7 +67,7 @@ You can open a session view to see history, follow progress, and keep track of w
 
 Download the latest release from the GitHub releases page and move `VibeHUD.app` into `/Applications`.
 
-On first launch, vibe hud installs the Claude Code hooks it needs automatically.
+Agent hooks are available from the app menu. Release builds refresh hooks that were already enabled when the app starts; other hooks remain off. Local builds leave hooks untouched at launch and allow you to enable them from the menu.
 
 Release downloads:
 - https://github.com/section9-lab/VibeHUD/releases/latest
@@ -80,7 +81,18 @@ From the notch menu, you can configure:
 - Claude config directory
 - launch at login
 - hooks on or off
-- update checks and installs
+- check for updates
+- independent quota display switches
+- interface language (English or Simplified Chinese)
+- Tibo announcement checks and notifications
+
+## Monitoring
+
+Codex quota and text generation speed are read from local Codex session logs by the bundled `codex_usage.py` and `codex_speed.py` workers. The displayed speed estimates visible text tokens per second for eligible responses. No session text is placed in the monitoring cache. The app reads the cache in `~/Library/Application Support/VibeHUD/Monitoring` by default.
+
+Claude quota uses the bundled `claude_statusline.py` adapter. To enable it, set Claude Code's `statusLine.command` to `python3 "/Applications/vibe hud.app/Contents/Resources/claude_statusline.py"`. The adapter receives Claude Code's status line JSON on stdin and writes only the available quota windows. It does not change hooks or collection settings in vibe hud. If Claude Code does not supply quota fields, the rings show an unknown state.
+
+Tibo checks use the public `https://codex-reset.com/api/feed` endpoint when the network setting is on. The five display switches only change what appears in the notch; they do not install hooks or start collectors. Tibo networking has its own switch.
 
 ## Compatibility
 
@@ -106,7 +118,7 @@ vibe hud works with the current Claude config layout and can resolve the config 
 
 ## Updates
 
-vibe hud uses Sparkle for in-app updates, so installed builds can check for new versions and install them from the app.
+vibe hud uses Sparkle for in-app updates, so installed release builds can check for new versions and install them from the app. Local builds made with `scripts/build-local.sh` disable automatic update checks and Mixpanel initialization; their menu opens the release page.
 
 GitHub tag releases require the `SPARKLE_PRIVATE_KEY` Actions secret matching `SUPublicEDKey` in `VibeHUD/Info.plist`. The workflow signs each DMG and verifies its signature against the built app's public key before publishing. Keep this key pair across releases.
 
@@ -114,7 +126,7 @@ Older builds without an update public key may need a one-time manual reinstall t
 
 ## Privacy
 
-vibe hud uses Mixpanel for product analytics such as app version, build number, macOS version, and Claude Code version metadata. The README should not promise that conversation content is collected, and the app is intended to track product usage rather than your chat transcripts.
+Monitoring workers keep quota summaries in the current user's Application Support folder. The Codex worker reads local session logs without uploading their contents. Tibo checks contact the public feed only when enabled. Release builds retain upstream Mixpanel product analytics for app version, build number, macOS version, and Claude Code version metadata; local builds disable its initialization. Conversation content is not collected by these monitoring workers.
 
 ## Build from source
 
@@ -130,6 +142,16 @@ To package a notarized release DMG:
 ./scripts/create-release.sh
 ```
 
+For a self-contained local build from this repository:
+
+```bash
+./scripts/build-local.sh
+```
+
+With Xcode installed, the script builds the full asset catalog. With Command Line Tools alone, it builds through SwiftPM and converts the included source icons to PNG resources; verify appearance before distributing that fallback bundle. The script writes `build-local/VibeHUDLocal.app` and never installs or launches it. Set `VIBE_HUD_LOCAL_BUNDLE_ID` to use an existing local app's preferences, and `VIBE_HUD_LOCAL_CACHE_DIR` to read an existing monitoring cache. `VIBE_HUD_REQUIRE_TAKEOVER=1` opts into a separately managed takeover preference for an existing local setup. Preview data requires the explicit `--preview` argument.
+
+The canonical Xcode build is `xcodebuild build -project VibeHUD.xcodeproj -scheme VibeHUD -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO`. Build artifacts and monitoring caches are excluded from version control.
+
 ## Tests
 
 Run the native Swift test suite with Xcode:
@@ -144,4 +166,4 @@ Run `bash tests/test_update_signature.sh` to verify acceptance of signed archive
 
 ## License
 
-Apache 2.0
+See [LICENSE](LICENSE) and [LICENSE.md](LICENSE.md). The bundled monitoring workers carry their separate MIT notice in `VibeHUD/Resources/usage-workers-LICENSE.txt`.
