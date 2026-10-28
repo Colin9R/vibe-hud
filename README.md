@@ -3,7 +3,7 @@
   <h1 align="center">vibe hud</h1>
 
   <p align="center">
-    A macOS notch overlay for Claude Code that keeps your sessions, approvals, replies, and updates within reach.
+    A native macOS notch HUD for Claude Code, Codex, and other AI coding agents. Follow sessions, review supported tool requests, and reply from one place.
   </p>
 
 [![GitHub Star](https://img.shields.io/github/stars/section9-lab/VibeHUD?style=rounded&color=white&labelColor=000000)](https://github.com/section9-lab/VibeHUD/stargazers)
@@ -25,16 +25,17 @@
 
 ## What it does
 
-vibe hud gives Claude Code a fast, ambient control surface on macOS. Instead of bouncing back and forth between your terminal and system prompts, you get a floating HUD for watching sessions, handling approvals, replying to prompts, and checking updates.
+vibe hud brings local AI coding sessions into your Mac’s notch. Follow Claude Code, Codex, and other supported agents while they continue to work in their own environments. The HUD shows session activity and conversation history, and can handle supported tool requests and replies. Available actions depend on the agent, its events, and the terminal setup.
+
+[Website](https://hud.vibevibe.cc/) · [Download](https://hud.vibevibe.cc/download/) · [Setup guides](https://hud.vibevibe.cc/docs/) · [Compatibility](https://hud.vibevibe.cc/docs/compatibility/)
 
 ## Product highlights
 
-- Live session HUD for multiple Claude Code sessions
-- WorkBuddy session status and conversation history through native hooks
-- Approve or deny tool requests from the notch
-- Answer `AskUserQuestion` prompts without leaving the workflow
-- Open chat history and review conversations in-app
-- Send replies back to Claude sessions from the HUD
+- Monitor multiple Claude Code, Codex, and other supported agent sessions
+- See session activity and open local conversation history in the HUD
+- Review supported tool requests and approve or deny them from the notch
+- Answer supported Claude `AskUserQuestion` prompts and send replies through compatible terminal routes
+- Enable integrations for Cursor, GitHub Copilot, Pi, OpenCode, WorkBuddy, and Qwen Work from Agent Hooks
 - Works with tmux, Terminal.app, iTerm2, and Ghostty
 - Choose your display, sound, Claude directory, and startup behavior
 - Built-in update checks and installs through Sparkle
@@ -43,7 +44,7 @@ vibe hud gives Claude Code a fast, ambient control surface on macOS. Instead of 
 
 ### Stay on top of active sessions
 
-vibe hud watches your Claude Code activity in real time and keeps the important state visible: running work, waiting input, approvals, and recently active sessions.
+vibe hud follows supported Claude Code and Codex session events and keeps important state visible: running work, waiting input, tool requests, and recently active sessions.
 
 ### Handle approvals faster
 
@@ -60,13 +61,15 @@ You can open a session view to see history, follow progress, and keep track of w
 ## Requirements
 
 - macOS 15.6+
-- Claude Code installed
+- A supported coding agent installed and configured, such as Claude Code or Codex
 
 ## Install
 
 Download the latest release from the GitHub releases page and move `VibeHUD.app` into `/Applications`.
 
-On first launch, vibe hud installs the Claude Code hooks it needs automatically.
+Open the notch menu, expand **Agent Hooks**, and enable the integration you use. Start a fresh agent session after enabling it. On subsequent launches, vibe hud refreshes hooks that were already enabled; installing the app alone does not enable every integration.
+
+For setup and troubleshooting, see the [Claude Code guide](https://hud.vibevibe.cc/docs/claude-code/) and [Codex guide](https://hud.vibevibe.cc/docs/codex/).
 
 Release downloads:
 - https://github.com/section9-lab/VibeHUD/releases/latest
@@ -84,7 +87,7 @@ From the notch menu, you can configure:
 
 ## Compatibility
 
-vibe hud is built around Claude Code on macOS and can route replies through the environments it detects, including:
+vibe hud supports several local agent integrations and can route replies through the environments it detects, including:
 
 - bridge mode
 - tmux
@@ -93,7 +96,7 @@ vibe hud is built around Claude Code on macOS and can route replies through the 
 - Ghostty
 - accessibility fallback when needed
 
-Some convenience features depend on your setup. For example, terminal focusing can benefit from tmux and optional window-management tooling.
+Available requests, replies, and focusing features depend on the agent, emitted events, and your environment. Terminal focusing can benefit from tmux and optional window-management tooling. See the [agent and terminal compatibility guide](https://hud.vibevibe.cc/docs/compatibility/) for the current scope.
 
 ## Claude directory support
 
@@ -114,7 +117,7 @@ Older builds without an update public key may need a one-time manual reinstall t
 
 ## Privacy
 
-vibe hud uses Mixpanel for product analytics such as app version, build number, macOS version, and Claude Code version metadata. The README should not promise that conversation content is collected, and the app is intended to track product usage rather than your chat transcripts.
+The app reads local session events and conversation history to display the HUD. It also uses Mixpanel for app launches and session starts, with an app-generated identifier and metadata such as app, build, macOS, and Claude Code versions. The analytics events in the current source do not attach conversation text. See the [privacy page](https://hud.vibevibe.cc/privacy/) for details.
 
 ## Build from source
 
