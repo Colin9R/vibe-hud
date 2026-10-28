@@ -16,6 +16,7 @@ struct OpenCodeConversationTests {
         )
         #expect(messages.map(\.id) == ["user", "assistant"])
         #expect(messages.map(\.textContent) == ["Inspect the project", "Done"])
+        #expect(messages.map { $0.timestamp.timeIntervalSince1970 } == [1, 2])
         #expect(messages.last?.content.contains(.thinking("Inspecting")) == true)
         let completed = await parser.completedToolIds(for: "session")
         #expect(completed == ["call-read", "call-edit"])

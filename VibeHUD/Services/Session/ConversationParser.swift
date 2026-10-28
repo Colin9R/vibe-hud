@@ -430,6 +430,7 @@ actor ConversationParser {
             structuredResults: state.structuredResults,
             clearDetected: clearDetected,
             hasStateChanges: previousMessages != state.messages ||
+                previousMessages.map(\.content) != state.messages.map(\.content) ||
                 previousCompletedToolIds != state.completedToolIds ||
                 previousToolResults != state.toolResults ||
                 previousStructuredResults != state.structuredResults
@@ -927,7 +928,7 @@ actor ConversationParser {
                 guard var json = try JSONSerialization.jsonObject(with: stored.data) as? [String: Any] else { continue }
                 json["id"] = stored.id
                 json["sessionID"] = sessionId
-                if json["time"] == nil { json["time"] = ["created": stored.createdAtMilliseconds] }
+                if json["time"] == nil { json["time"] = ["created": Double(stored.createdAtMilliseconds)] }
                 let parts = stored.parts.compactMap { data in
                     (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
                 }
