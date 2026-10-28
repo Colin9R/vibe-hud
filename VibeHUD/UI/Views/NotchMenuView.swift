@@ -110,6 +110,15 @@ struct NotchMenuView: View {
                     MenuToggleRow(source: .codex, label: "Codex", isOn: hookState(for: .codex), isNested: true) {
                         toggleHook(.codex)
                     }
+                    if hookState(for: .codex) {
+                        Text("In Codex, run /hooks to review and trust this integration after enabling or updating it.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.leading, 28)
+                            .padding(.trailing, 12)
+                            .padding(.bottom, 4)
+                    }
                     MenuToggleRow(source: .cursor, label: "Cursor", isOn: hookState(for: .cursor), isNested: true) {
                         toggleHook(.cursor)
                     }
@@ -124,9 +133,6 @@ struct NotchMenuView: View {
                     }
                     MenuToggleRow(source: .workbuddy, label: "WorkBuddy", isOn: hookState(for: .workBuddy), isNested: true) {
                         toggleHook(.workBuddy)
-                    }
-                    MenuToggleRow(source: .qwenWork, label: "千问办公", isOn: hookState(for: .qwenWork), isNested: true) {
-                        toggleHook(.qwenWork)
                     }
                 }
 

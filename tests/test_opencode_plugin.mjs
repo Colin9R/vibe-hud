@@ -15,6 +15,9 @@ const source = (await fs.readFile(pluginPath, "utf8")).replace(
 const moduleURL = `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`
 const pluginFactory = (await import(moduleURL)).default
 const plugin = await pluginFactory()
+const fixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), "vibe-hud-opencode-"))
+const originalDataHome = process.env.XDG_DATA_HOME
+const originalDatabase = process.env.OPENCODE_DB
 
 const server = net.createServer()
 await new Promise((resolve) => server.listen(socketPath, resolve))
@@ -32,6 +35,24 @@ async function captureEvent(input) {
 }
 
 try {
+  process.env.XDG_DATA_HOME = fixtureRoot
+  delete process.env.OPENCODE_DB
+  const dataDir = path.join(fixtureRoot, "opencode")
+  const legacySession = path.join(dataDir, "storage/session/project/session-1.json")
+  await fs.mkdir(path.dirname(legacySession), { recursive: true })
+  await fs.writeFile(legacySession, JSON.stringify({ id: "session-1" }))
+  const created = () => captureEvent({
+    event: { type: "session.created", properties: { info: { id: "session-1", directory: fixtureRoot } } },
+  })
+  assert.equal((await created()).transcript_path, legacySession)
+  const database = path.join(dataDir, "opencode.db")
+  await fs.writeFile(database, "SQLite format 3\0")
+  assert.equal((await created()).transcript_path, database)
+  const customDatabase = path.join(fixtureRoot, "custom.sqlite")
+  await fs.writeFile(customDatabase, "SQLite format 3\0")
+  process.env.OPENCODE_DB = customDatabase
+  assert.equal((await created()).transcript_path, customDatabase)
+
   const busy = await captureEvent({
     event: {
       type: "session.status",
@@ -113,6 +134,11 @@ try {
   assert.equal(failure.status, "failed")
   assert.equal(failure.message, "Rate limited")
 } finally {
+  if (originalDataHome === undefined) delete process.env.XDG_DATA_HOME
+  else process.env.XDG_DATA_HOME = originalDataHome
+  if (originalDatabase === undefined) delete process.env.OPENCODE_DB
+  else process.env.OPENCODE_DB = originalDatabase
   await new Promise((resolve) => server.close(resolve))
   await fs.rm(socketPath, { force: true })
+  await fs.rm(fixtureRoot, { recursive: true, force: true })
 }

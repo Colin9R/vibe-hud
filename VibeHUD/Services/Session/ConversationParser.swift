@@ -118,6 +118,14 @@ actor ConversationParser {
     func parse(sessionId: String, cwd: String, transcriptPath: String? = nil) -> ConversationInfo {
         let sessionFile = Self.sessionFilePath(sessionId: sessionId, cwd: cwd, transcriptPath: transcriptPath)
 
+        // SQLite writes can live in the WAL without changing the main file's mtime.
+        if OpenCodeSessionDatabase.isDatabase(at: sessionFile) {
+            var state = incrementalState[sessionId] ?? IncrementalParseState()
+            let info = parseOpenCodeDatabase(sessionId: sessionId, filePath: sessionFile, state: &state)
+            incrementalState[sessionId] = state
+            return info
+        }
+
         let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: sessionFile),
               let attrs = try? fileManager.attributesOfItem(atPath: sessionFile),
@@ -339,6 +347,13 @@ actor ConversationParser {
     func parseFullConversation(sessionId: String, cwd: String, transcriptPath: String? = nil) -> [ChatMessage] {
         let sessionFile = Self.sessionFilePath(sessionId: sessionId, cwd: cwd, transcriptPath: transcriptPath)
 
+        if OpenCodeSessionDatabase.isDatabase(at: sessionFile) {
+            var state = incrementalState[sessionId] ?? IncrementalParseState()
+            _ = parseOpenCodeDatabase(sessionId: sessionId, filePath: sessionFile, state: &state)
+            incrementalState[sessionId] = state
+            return state.messages
+        }
+
         guard FileManager.default.fileExists(atPath: sessionFile) else {
             return []
         }
@@ -389,10 +404,18 @@ actor ConversationParser {
         }
 
         var state = incrementalState[sessionId] ?? IncrementalParseState()
+        let previousMessages = state.messages
         let previousCompletedToolIds = state.completedToolIds
         let previousToolResults = state.toolResults
         let previousStructuredResults = state.structuredResults
-        let newMessages = parseNewLines(filePath: sessionFile, state: &state)
+        let newMessages: [ChatMessage]
+        if OpenCodeSessionDatabase.isDatabase(at: sessionFile) {
+            let previousIds = Set(state.messages.map(\.id))
+            _ = parseOpenCodeDatabase(sessionId: sessionId, filePath: sessionFile, state: &state)
+            newMessages = state.messages.filter { !previousIds.contains($0.id) }
+        } else {
+            newMessages = parseNewLines(filePath: sessionFile, state: &state)
+        }
         let clearDetected = state.clearPending
         if clearDetected {
             state.clearPending = false
@@ -406,7 +429,8 @@ actor ConversationParser {
             toolResults: state.toolResults,
             structuredResults: state.structuredResults,
             clearDetected: clearDetected,
-            hasStateChanges: previousCompletedToolIds != state.completedToolIds ||
+            hasStateChanges: previousMessages != state.messages ||
+                previousCompletedToolIds != state.completedToolIds ||
                 previousToolResults != state.toolResults ||
                 previousStructuredResults != state.structuredResults
         )
@@ -882,6 +906,81 @@ actor ConversationParser {
         return newMessages
     }
 
+    private func parseOpenCodeDatabase(
+        sessionId: String, filePath: String, state: inout IncrementalParseState
+    ) -> ConversationInfo {
+        let emptyInfo = ConversationInfo(
+            summary: nil, lastMessage: nil, lastMessageRole: nil, lastToolName: nil,
+            firstUserMessage: nil, lastUserMessageDate: nil
+        )
+        do {
+            guard let snapshot = try OpenCodeSessionDatabase.snapshot(sessionId: sessionId, at: filePath) else {
+                state = IncrementalParseState()
+                return emptyInfo
+            }
+            var messages: [ChatMessage] = []
+            var completed = Set<String>()
+            var results: [String: ToolResult] = [:]
+            var structured: [String: ToolResultData] = [:]
+            var usage = UsageInfo()
+            for stored in snapshot.messages {
+                guard var json = try JSONSerialization.jsonObject(with: stored.data) as? [String: Any] else { continue }
+                json["id"] = stored.id
+                json["sessionID"] = sessionId
+                if json["time"] == nil { json["time"] = ["created": stored.createdAtMilliseconds] }
+                let parts = stored.parts.compactMap { data in
+                    (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+                }
+                let blocks = parts.compactMap { parseOpenCodePart($0)?.block }
+                if let message = parseOpenCodeMessage(json, parts: blocks) { messages.append(message) }
+                if let tokens = json["tokens"] as? [String: Any] {
+                    usage.inputTokens += tokens["input"] as? Int ?? 0
+                    usage.outputTokens += tokens["output"] as? Int ?? 0
+                    let cache = tokens["cache"] as? [String: Any]
+                    usage.cacheReadTokens += cache?["read"] as? Int ?? 0
+                    usage.cacheCreationTokens += cache?["write"] as? Int ?? 0
+                }
+                for part in parts where part["type"] as? String == "tool" {
+                    guard let callId = part["callID"] as? String,
+                          let toolState = part["state"] as? [String: Any],
+                          let status = toolState["status"] as? String,
+                          status == "completed" || status == "error" else { continue }
+                    completed.insert(callId)
+                    let output = toolState["output"] as? String
+                    let error = toolState["error"] as? String
+                    results[callId] = ToolResult(
+                        content: output ?? error, stdout: output, stderr: error, isError: status == "error"
+                    )
+                    structured[callId] = .generic(GenericResult(
+                        rawContent: output ?? error,
+                        rawData: toolState["metadata"] as? [String: Any] ?? toolState
+                    ))
+                }
+            }
+            state.messages = messages
+            state.completedToolIds = completed
+            state.toolResults = results
+            state.structuredResults = structured
+            let last = messages.last
+            let lastTool = last?.content.compactMap { block -> String? in
+                if case .toolUse(let tool) = block { return tool.name }
+                return nil
+            }.last
+            return ConversationInfo(
+                summary: snapshot.title,
+                lastMessage: Self.truncateMessage(last?.textContent, maxLength: 80),
+                lastMessageRole: last?.role.rawValue,
+                lastToolName: lastTool,
+                firstUserMessage: Self.truncateMessage(messages.first(where: { $0.role == .user })?.textContent, maxLength: 50),
+                lastUserMessageDate: messages.last(where: { $0.role == .user })?.timestamp,
+                usage: usage
+            )
+        } catch {
+            Self.logger.error("Unable to read OpenCode session database: \(error.localizedDescription, privacy: .public)")
+            return emptyInfo
+        }
+    }
+
     private func parseOpenCodeConversationInfo(filePath: String) -> ConversationInfo {
         guard let sessionData = FileManager.default.contents(atPath: filePath),
               let sessionJson = try? JSONSerialization.jsonObject(with: sessionData) as? [String: Any] else {
@@ -1062,8 +1161,14 @@ actor ConversationParser {
 
     private func parseOpenCodeMessageFile(_ url: URL) -> ChatMessage? {
         guard let data = try? Data(contentsOf: url),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let id = json["id"] as? String,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return parseOpenCodeMessage(json, parts: parseOpenCodeParts(
+            messageId: json["id"] as? String ?? "", sessionId: json["sessionID"] as? String ?? ""
+        ))
+    }
+
+    private func parseOpenCodeMessage(_ json: [String: Any], parts: [MessageBlock]) -> ChatMessage? {
+        guard let id = json["id"] as? String,
               let roleString = json["role"] as? String else { return nil }
 
         let role: ChatRole = roleString == "user" ? .user : .assistant
@@ -1075,8 +1180,6 @@ actor ConversationParser {
             timestampMs = 0
         }
         let timestamp = Date(timeIntervalSince1970: timestampMs / 1000)
-        let sessionId = json["sessionID"] as? String ?? ""
-        let parts = parseOpenCodeParts(messageId: id, sessionId: sessionId)
 
         if parts.isEmpty {
             return nil
@@ -1104,10 +1207,14 @@ actor ConversationParser {
 
     private func parseOpenCodePartFile(_ url: URL) -> (block: MessageBlock, timestamp: Date?)? {
         guard let data = try? Data(contentsOf: url),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let type = json["type"] as? String else {
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             return nil
         }
+        return parseOpenCodePart(json)
+    }
+
+    private func parseOpenCodePart(_ json: [String: Any]) -> (block: MessageBlock, timestamp: Date?)? {
+        guard let type = json["type"] as? String else { return nil }
 
         switch type {
         case "text":

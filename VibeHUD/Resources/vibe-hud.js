@@ -2,6 +2,7 @@ const SOCKET_PATH = "/tmp/vibe-hud.sock"
 
 import fs from "fs"
 import net from "net"
+import path from "path"
 
 function sendEvent(state, waitForResponse = false) {
   return new Promise((resolve) => {
@@ -94,15 +95,21 @@ function buildBaseState(sessionID, cwd) {
 }
 
 function opencodeDataDir() {
-  return process.env.HOME ? `${process.env.HOME}/.local/share/opencode/storage` : ""
+  const dataHome = process.env.XDG_DATA_HOME || (process.env.HOME ? path.join(process.env.HOME, ".local/share") : "")
+  return dataHome ? path.join(dataHome, "opencode") : ""
 }
 
 function opencodeSessionFile(sessionID) {
-  const storageDir = opencodeDataDir()
-  if (!storageDir || !sessionID) return null
+  if (!sessionID) return null
+  const dataDir = opencodeDataDir()
+  const database = process.env.OPENCODE_DB
+    ? path.resolve(process.env.OPENCODE_DB)
+    : dataDir ? path.join(dataDir, "opencode.db") : null
+  if (database && fs.existsSync(database)) return database
+  if (!dataDir) return null
 
   try {
-    const sessionRoot = `${storageDir}/session`
+    const sessionRoot = path.join(dataDir, "storage/session")
     for (const project of fs.readdirSync(sessionRoot)) {
       const candidate = `${sessionRoot}/${project}/${sessionID}.json`
       if (fs.existsSync(candidate)) return candidate

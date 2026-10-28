@@ -53,6 +53,26 @@ struct HookInstallerTests {
             let entries = try #require(hooks[event] as? [[String: Any]])
             #expect(entries.allSatisfy { $0["type"] as? String == "command" })
         }
+        let permission = try #require((hooks["permissionRequest"] as? [[String: Any]])?.first)
+        #expect(permission["timeoutSec"] as? Int == 360)
+    }
+
+    @Test("Codex allows time for human approvals and bounds session shutdown")
+    func installsCodexTimeouts() throws {
+        let url = temporaryFileURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+        try writeJSON(["hooks": ["PermissionRequest": [["hooks": [["type": "command", "command": "echo keep-me"]]]]]], to: url)
+        HookInstaller.updateCodexHooks(at: url)
+        let hooks = try #require(readJSON(at: url)["hooks"] as? [String: Any])
+        for (event, timeout) in [("PermissionRequest", 360), ("SessionEnd", 3), ("PreToolUse", 10)] {
+            let groups = try #require(hooks[event] as? [[String: Any]])
+            let entries = groups.flatMap { $0["hooks"] as? [[String: Any]] ?? [] }
+            let managed = try #require(entries.first { ($0["command"] as? String)?.contains("vibe-hud-state.py") == true })
+            #expect(managed["timeout"] as? Int == timeout)
+            if event == "PermissionRequest" {
+                #expect(entries.contains { $0["command"] as? String == "echo keep-me" })
+            }
+        }
     }
 
     @Test("Updating shared Copilot hooks removes duplicate legacy VS Code registrations")
@@ -114,20 +134,6 @@ struct HookInstallerTests {
             "echo keep-me",
             "python3 '/tmp/vibe-hud-state.py' --source workbuddy",
         ])
-    }
-
-    @Test("Toggles Qwen Work database monitoring")
-    func togglesQwenWorkMonitoring() throws {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-        let marker = directory.appendingPathComponent("vibe-hud-enabled")
-        defer { try? FileManager.default.removeItem(at: directory) }
-
-        HookInstaller.setQwenWorkMonitoring(enabled: true, markerURL: marker)
-        #expect(FileManager.default.fileExists(atPath: marker.path))
-
-        HookInstaller.setQwenWorkMonitoring(enabled: false, markerURL: marker)
-        #expect(!FileManager.default.fileExists(atPath: marker.path))
     }
 }
 

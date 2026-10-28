@@ -406,8 +406,6 @@ struct InstanceRow: View {
             .white
         case .workbuddy:
             Color(red: 14 / 255, green: 200 / 255, blue: 169 / 255)
-        case .qwenWork:
-            Color(red: 0.39, green: 0.31, blue: 0.93)
         }
     }
 

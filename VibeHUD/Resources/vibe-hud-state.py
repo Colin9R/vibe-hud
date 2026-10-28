@@ -10,6 +10,7 @@ import socket
 import subprocess
 import sys
 import time
+import uuid
 
 SOCKET_PATH = "/tmp/vibe-hud.sock"
 TIMEOUT_SECONDS = 300  # 5 minutes for permission decisions
@@ -364,7 +365,13 @@ def main():
         state["status"] = "waiting_for_approval"
         state["tool"] = tool_name
         state["tool_input"] = tool_input
-        # tool_use_id lookup handled by Swift-side cache from PreToolUse
+        if tool_use_id:
+            state["tool_use_id"] = tool_use_id
+        elif source in {"copilot", "vscodeagent"}:
+            # Native Copilot permission hooks do not carry the tool call ID.
+            # Give this socket request its own identity instead of relying on
+            # a PreToolUse cache entry that may not exist or have identical args.
+            state["tool_use_id"] = f"copilot-permission-{uuid.uuid4()}"
 
         # Send to app and wait for decision
         response = send_event(state)
@@ -375,7 +382,7 @@ def main():
 
             if decision == "allow":
                 # Output JSON to approve
-                output = {
+                output = {"behavior": "allow"} if source in {"copilot", "vscodeagent"} else {
                     "hookSpecificOutput": {
                         "hookEventName": "PermissionRequest",
                         "decision": {"behavior": "allow"},
@@ -387,6 +394,9 @@ def main():
             elif decision == "deny":
                 # Output JSON to deny
                 output = {
+                    "behavior": "deny",
+                    "message": reason or "Denied by user via VibeHUD",
+                } if source in {"copilot", "vscodeagent"} else {
                     "hookSpecificOutput": {
                         "hookEventName": "PermissionRequest",
                         "decision": {
