@@ -70,6 +70,37 @@ struct OpenCodeConversationTests {
         #expect(!FileManager.default.fileExists(atPath: missing.path))
     }
 
+    @Test("Updates visible conversation text without duplicating messages or losing tool errors")
+    func refreshesSessionStore() async throws {
+        let fixture = try makeFixture()
+        defer { sqlite3_close(fixture.connection); try? FileManager.default.removeItem(at: fixture.root) }
+        let store = SessionStore(initialSessions: [SessionState(
+            sessionId: "session", cwd: "/tmp/project", source: .opencode,
+            transcriptPath: fixture.url.path, phase: .processing
+        )])
+        await store.process(.loadHistory(sessionId: "session", cwd: "/tmp/project"))
+        try execute("UPDATE part SET data = '{\"type\":\"text\",\"text\":\"Updated response\"}' WHERE id = 'text';", in: fixture.connection)
+        let parser = ConversationParser()
+        let messages = await parser.parseFullConversation(sessionId: "session", cwd: "/tmp/project", transcriptPath: fixture.url.path)
+        await store.process(.fileUpdated(FileUpdatePayload(
+            sessionId: "session", cwd: "/tmp/project", transcriptPath: fixture.url.path,
+            messages: messages, isIncremental: false,
+            completedToolIds: await parser.completedToolIds(for: "session"),
+            toolResults: await parser.toolResults(for: "session"),
+            structuredResults: await parser.structuredResults(for: "session")
+        )))
+        let updated = try #require(await store.session(for: "session"))
+        #expect(updated.chatItems.filter { $0.type == .user("Inspect the project") }.count == 1)
+        #expect(updated.chatItems.contains { $0.type == .assistant("Updated response") })
+        #expect(!updated.chatItems.contains { $0.type == .assistant("Done") })
+        let failed = updated.chatItems.first { $0.id == "call-edit" }
+        if case .toolCall(let tool) = failed?.type {
+            #expect(tool.status == .error)
+        } else {
+            Issue.record("Missing failed tool")
+        }
+    }
+
     private func makeFixture() throws -> (root: URL, url: URL, connection: OpaquePointer) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
