@@ -1,0 +1,15 @@
+/* Fixed export coordinates preserve the original 1200 × 800 animation. */
+html, body { margin: 0; background: rgb(24 27 31); }
+.readme-stage { position: relative; width: 1280px; height: 880px; }
+.readme-device { position: absolute; left: 36px; top: 36px; width: 1208px; padding: 4px; --mac-frame-radius: 40px; }
+.readme-device .macbook-bezel { padding: 15px; }
+.readme-device .macbook-screen { width: 1168px; height: 728px; }
+.readme-device .mac-desktop { width: 1168px; height: 728px; transform: none; pointer-events: none; }
+.readme-device .demo-agent-window { top: 218px; left: 130px; width: 908px; height: 428px; }
+.readme-device .demo-window-titlebar { height: 37px; font-size: 12px; }
+.readme-device .demo-dock-position { bottom: 8px; }
+.readme-device .demo-dock { gap: 4px; padding: 8px; }
+.readme-device .demo-dock-item { width: 34px; height: 38px; }
+.readme-device .demo-dock-icon { width: 34px; height: 34px; }
+.readme-device .demo-dock-calendar-month { font-size: 5px; line-height: 12px; }
+.readme-device .demo-dock-calendar { font-size: 20px; }
