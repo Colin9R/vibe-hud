@@ -146,6 +146,25 @@ struct ClosedMonitoringAccessory: View {
                         .foregroundStyle(.white.opacity(0.96))
                     }
                 }
+            } else if preferences.isVisible(.claudeSpeed), store.claude.tokensPerSecond != nil {
+                TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: 5)) { context in
+                    if MonitoringCenterCycle.showsIcon(at: context.date) {
+                        brandIcon(size: displayedPeriods.count == 2 ? 10.5 : 12)
+                    } else {
+                        VStack(spacing: -1) {
+                            Text(MonitoringNumberText.ringSpeedNumber(store.claude.tokensPerSecond))
+                                .font(.system(size: displayedPeriods.count == 2 ? 7.2 : 9,
+                                              weight: .medium, design: .rounded))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                            Text("tok/s")
+                                .font(.system(size: displayedPeriods.count == 2 ? 4 : 4.8,
+                                              weight: .medium))
+                                .foregroundStyle(.white.opacity(0.76))
+                        }
+                        .foregroundStyle(.white.opacity(0.96))
+                    }
+                }
             } else {
                 brandIcon(size: displayedPeriods.count == 2 ? 10.5 : 12)
             }
@@ -226,9 +245,13 @@ struct ClosedMonitoringAccessory: View {
                 ? "Codex, " + quotaLabel + ", " + MonitoringNumberText.speed(store.codex.tokensPerSecond)
                 : "Codex, " + quotaLabel
         case .claude:
-            return "Claude, " + displayedPeriods.map {
+            let quotaLabel = displayedPeriods.map {
                 quotaAccessibility($0, window: quotaSnapshot.window($0))
             }.joined(separator: ", ")
+            if preferences.isVisible(.claudeSpeed) {
+                return "Claude, " + quotaLabel + ", " + MonitoringNumberText.speed(store.claude.tokensPerSecond)
+            }
+            return "Claude, " + quotaLabel
         default:
             return label
         }
@@ -321,7 +344,8 @@ struct MonitoringNotchContent: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.5))
             }
-            if source == .codex, preferences.isVisible(.codexSpeed) {
+            if (source == .codex && preferences.isVisible(.codexSpeed)) ||
+               (source == .claude && preferences.isVisible(.claudeSpeed)) {
                 HStack {
                     Text(tr("monitoring.todaySpeed"))
                     Spacer()
@@ -436,7 +460,8 @@ struct MonitoringNotchContent: View {
     private var overviewDetails: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                if preferences.isVisible(.claudeFiveHour) || preferences.isVisible(.claudeSevenDay) {
+                if preferences.isVisible(.claudeFiveHour) || preferences.isVisible(.claudeSevenDay)
+                    || preferences.isVisible(.claudeSpeed) {
                     Button { onSelect(.claude) } label: {
                         quotaDetails(snapshot: store.claude, source: .claude)
                     }

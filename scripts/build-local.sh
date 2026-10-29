@@ -47,7 +47,7 @@ else
 fi
 
 for resource in vibe-hud-state.py vibe-hud.js LobeIcons-LICENSE.txt \
-                codex_usage.py codex_speed.py tibo_reset.py claude_statusline.py; do
+                codex_usage.py codex_speed.py tibo_reset.py claude_statusline.py claude_speed.py; do
     ditto "$PROJECT_DIR/VibeHUD/Resources/$resource" "$RESOURCES/$resource"
 done
 ditto "$PROJECT_DIR/LICENSE" "$RESOURCES/VibeHUD-LICENSE"

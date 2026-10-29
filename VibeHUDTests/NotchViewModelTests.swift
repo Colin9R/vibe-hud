@@ -77,25 +77,35 @@ struct NotchViewModelTests {
         #expect(builtin.closedTrailingExtension == 34)
     }
 
-    @Test("Codex controls share one ring and every hidden item removes its cell")
+    @Test("Each source shares one ring and every hidden item removes its cell")
     func visibleRingCombinations() {
         let both = NotchAccessory.visible(codexQuota: true, codexSpeed: true,
-                                          claude5h: true, claude7d: true, tiboAlert: false)
+                                          claude5h: true, claude7d: true, claudeSpeed: true,
+                                          tiboAlert: false)
         let quotaOnly = NotchAccessory.visible(codexQuota: true, codexSpeed: false,
-                                               claude5h: false, claude7d: false, tiboAlert: false)
+                                               claude5h: false, claude7d: false, claudeSpeed: false,
+                                               tiboAlert: false)
         let speedOnly = NotchAccessory.visible(codexQuota: false, codexSpeed: true,
-                                               claude5h: false, claude7d: false, tiboAlert: false)
+                                               claude5h: false, claude7d: false, claudeSpeed: false,
+                                               tiboAlert: false)
         let hidden = NotchAccessory.visible(codexQuota: false, codexSpeed: false,
-                                            claude5h: false, claude7d: false, tiboAlert: false)
+                                            claude5h: false, claude7d: false, claudeSpeed: false,
+                                            tiboAlert: false)
         let onlyClaude5h = NotchAccessory.visible(codexQuota: false, codexSpeed: false,
-                                                  claude5h: true, claude7d: false, tiboAlert: false)
+                                                  claude5h: true, claude7d: false, claudeSpeed: false,
+                                                  tiboAlert: false)
         let onlyClaude7d = NotchAccessory.visible(codexQuota: false, codexSpeed: false,
-                                                  claude5h: false, claude7d: true, tiboAlert: false)
+                                                  claude5h: false, claude7d: true, claudeSpeed: false,
+                                                  tiboAlert: false)
+        let onlyClaudeSpeed = NotchAccessory.visible(codexQuota: false, codexSpeed: false,
+                                                     claude5h: false, claude7d: false, claudeSpeed: true,
+                                                     tiboAlert: false)
         #expect(both == [.codex, .claude])
         #expect(quotaOnly == [.codex])
         #expect(speedOnly == [.codex])
         #expect(onlyClaude5h == [.claude])
         #expect(onlyClaude7d == [.claude])
+        #expect(onlyClaudeSpeed == [.claude])
         #expect(hidden.isEmpty)
     }
 }

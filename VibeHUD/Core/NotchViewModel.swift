@@ -65,10 +65,11 @@ enum NotchAccessory: String, CaseIterable, Equatable {
     }
 
     static func visible(codexQuota: Bool, codexSpeed: Bool,
-                        claude5h: Bool, claude7d: Bool, tiboAlert: Bool) -> [NotchAccessory] {
+                        claude5h: Bool, claude7d: Bool, claudeSpeed: Bool,
+                        tiboAlert: Bool) -> [NotchAccessory] {
         var entries: [NotchAccessory] = []
         if codexQuota || codexSpeed { entries.append(.codex) }
-        if claude5h || claude7d { entries.append(.claude) }
+        if claude5h || claude7d || claudeSpeed { entries.append(.claude) }
         if tiboAlert { entries.append(.tibo) }
         return entries
     }

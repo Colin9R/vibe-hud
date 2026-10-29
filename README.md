@@ -38,7 +38,7 @@ vibe hud gives Claude Code a fast, ambient control surface on macOS. Instead of 
 - Works with tmux, Terminal.app, iTerm2, and Ghostty
 - Choose your display, sound, Claude directory, and startup behavior
 - Check and install signed updates from the notch
-- Claude and Codex quota rings, Codex text generation speed, and optional Tibo announcements beside the session HUD
+- Claude and Codex quota rings, estimated response speed for both, and optional Tibo announcements beside the session HUD
 
 ## Main workflows
 
@@ -90,9 +90,11 @@ From the notch menu, you can configure:
 
 Codex quota and text generation speed are read from local Codex session logs by the bundled `codex_usage.py` and `codex_speed.py` workers. The displayed speed estimates visible text tokens per second for eligible responses. No session text is placed in the monitoring cache. The app reads the cache in `~/Library/Application Support/VibeHUD/Monitoring` by default.
 
-Claude quota uses the bundled `claude_statusline.py` adapter. To enable it, set Claude Code's `statusLine.command` to `python3 "/Applications/vibe hud.app/Contents/Resources/claude_statusline.py"`. The adapter receives Claude Code's status line JSON on stdin and writes only the available quota windows. It does not change hooks or collection settings in vibe hud. If Claude Code does not supply quota fields, the rings show an unknown state.
+Claude speed is estimated locally by `claude_speed.py` from visible output tokens over the interval between an API request (or preceding user event) and the response's last recorded block. That interval can include waiting or thinking time. The worker stores only aggregate counts and rates in the monitoring cache, alongside Claude quota data.
 
-Tibo checks use the public `https://codex-reset.com/api/feed` endpoint when the network setting is on. The five display switches only change what appears in the notch; they do not install hooks or start collectors. Tibo networking has its own switch.
+Claude quota uses the bundled `claude_statusline.py` adapter. To enable it, set Claude Code's `statusLine.command` to `python3 "/Applications/vibe hud.app/Contents/Resources/claude_statusline.py"`. The adapter receives Claude Code's status line JSON on stdin and updates the available quota windows in the shared cache. It does not change hooks or collection settings in vibe hud. If Claude Code does not supply quota fields, the rings show an unknown state.
+
+Tibo checks use the public `https://codex-reset.com/api/feed` endpoint when the network setting is on. The six display switches only change what appears in the notch; they do not install hooks or start collectors. Tibo networking has its own switch.
 
 ## Compatibility
 
@@ -126,7 +128,7 @@ Older builds without an update public key may need a one-time manual reinstall t
 
 ## Privacy
 
-Monitoring workers keep quota summaries in the current user's Application Support folder. The Codex worker reads local session logs without uploading their contents. Tibo checks contact the public feed only when enabled. Release builds retain upstream Mixpanel product analytics for app version, build number, macOS version, and Claude Code version metadata; local builds disable its initialization. Conversation content is not collected by these monitoring workers.
+Monitoring workers keep quota and speed summaries in the current user's Application Support folder. The Codex and Claude speed workers read local session logs without uploading their contents. Tibo checks contact the public feed only when enabled. Release builds retain upstream Mixpanel product analytics for app version, build number, macOS version, and Claude Code version metadata; local builds disable its initialization. Conversation content is not collected by these monitoring workers.
 
 ## Build from source
 

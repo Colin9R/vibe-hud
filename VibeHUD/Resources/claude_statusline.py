@@ -31,15 +31,24 @@ def extract_windows(rate_limits):
 def write_cache(windows, cache_file=DEFAULT_CACHE):
     cache_dir = os.path.dirname(cache_file)
     os.makedirs(cache_dir, exist_ok=True)
+    # Merge, not overwrite: keep fields owned by other writers (daily_performance).
+    try:
+        with open(cache_file) as stream:
+            previous = json.load(stream)
+    except (OSError, ValueError):
+        previous = {}
+    if not isinstance(previous, dict):
+        previous = {}
     payload = {
         "tool": "claude",
         "source": "claude-code-statusline",
         "updated_at": int(time.time()),
         "windows": windows,
     }
+    merged = {**previous, **payload}
     fd, tmp = tempfile.mkstemp(dir=cache_dir, prefix=".claude.", suffix=".tmp")
     with os.fdopen(fd, "w") as f:
-        json.dump(payload, f)
+        json.dump(merged, f)
     os.chmod(tmp, 0o600)
     os.replace(tmp, cache_file)
 

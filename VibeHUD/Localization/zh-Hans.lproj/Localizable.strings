@@ -51,6 +51,7 @@
 "quota.title.claude.sevenDay" = "Claude 7 天";
 "display.codexQuota" = "Codex 额度";
 "display.codexSpeed" = "Codex 速度";
+"display.claudeSpeed" = "Claude 速度";
 "display.tiboEntry" = "Tibo 入口提示";
 "menu.tiboNetworking" = "联网检查 Tibo 公告";
 "menu.tiboNotifications" = "通知 Tibo 新公告";

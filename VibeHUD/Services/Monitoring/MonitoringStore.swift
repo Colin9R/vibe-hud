@@ -35,6 +35,7 @@ final class MonitoringStore: ObservableObject {
 
     /// Collection switches are independent of menu and card visibility.
     @Published var collectCodex = true
+    @Published var collectClaude = true
     @Published var collectTibo = true {
         didSet {
             if !collectTibo {
@@ -52,8 +53,10 @@ final class MonitoringStore: ObservableObject {
     private var timer: Timer?
     private var wakeObserver: NSObjectProtocol?
     private var codexTask: Task<Void, Never>?
+    private var claudeTask: Task<Void, Never>?
     private var tiboTask: Task<Void, Never>?
     private var lastCodexStart: Date?
+    private var lastClaudeStart: Date?
     private var lastTiboStart: Date?
     private var dismissedTiboID: String?
     private var pendingTiboID: String?
@@ -147,6 +150,7 @@ final class MonitoringStore: ObservableObject {
         if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
         wakeObserver = nil
         codexTask?.cancel()
+        claudeTask?.cancel()
         tiboTask?.cancel()
     }
 
@@ -183,6 +187,22 @@ final class MonitoringStore: ObservableObject {
                    let snapshot = try? MonitoringDecoder.quota(data) { self.codex = snapshot }
                 else if self.codex.windows.isEmpty {
                     self.codex = QuotaSnapshot(updatedAt: nil, windows: [:], tokensPerSecond: nil,
+                                               errorCode: "collector_failed")
+                }
+            }
+        }
+        if collectClaude && claudeTask == nil && due(lastClaudeStart, interval: 120, now: now) {
+            lastClaudeStart = now
+            claudeTask = Task { [weak self] in
+                let result = await MonitoringProcess.run(script: paths.scripts.appendingPathComponent("claude_speed.py"),
+                                                         arguments: ["--write", "--cache", paths.claudeCache.path], timeout: 30)
+                guard let self else { return }
+                self.claudeTask = nil
+                if Task.isCancelled { return }
+                if case .success(let data) = result,
+                   let snapshot = try? MonitoringDecoder.quota(data) { self.claude = snapshot }
+                else if self.claude.windows.isEmpty {
+                    self.claude = QuotaSnapshot(updatedAt: nil, windows: [:], tokensPerSecond: nil,
                                                errorCode: "collector_failed")
                 }
             }

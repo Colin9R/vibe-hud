@@ -46,6 +46,7 @@ class MonitoringWorkerTests(unittest.TestCase):
     def test_claude_statusline_from_synthetic_input(self):
         with tempfile.TemporaryDirectory() as directory:
             cache = Path(directory) / "claude.json"
+            cache.write_text(json.dumps({"daily_performance": {"tokens_per_second": 42}}))
             result = subprocess.run(
                 [sys.executable, "-I", str(WORKERS / "claude_statusline.py"), "--cache", str(cache)],
                 input=json.dumps({"model": {"display_name": "Sample"}, "rate_limits": {
@@ -56,7 +57,51 @@ class MonitoringWorkerTests(unittest.TestCase):
             self.assertIn("5h 22%", result.stdout)
             self.assertIn("7d 61%", result.stdout)
             self.assertEqual(json.loads(cache.read_text())["windows"]["seven_day"]["used_percentage"], 61)
+            self.assertEqual(json.loads(cache.read_text())["daily_performance"]["tokens_per_second"], 42)
             self.assertEqual(cache.stat().st_mode & 0o777, 0o600)
+
+    def test_claude_speed_from_empty_synthetic_root_preserves_quota(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            projects = home / "projects"
+            projects.mkdir()
+            cache = home / "private/claude.json"
+            cache.parent.mkdir()
+            cache.write_text(json.dumps({"windows": {"five_hour": {"used_percentage": 22}}}))
+            result = subprocess.run(
+                [sys.executable, "-I", str(WORKERS / "claude_speed.py"), "--write",
+                 "--root", str(projects), "--cache", str(cache)],
+                capture_output=True, text=True, check=True,
+            )
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["windows"]["five_hour"]["used_percentage"], 22)
+            self.assertEqual(payload["daily_performance"]["status"], "unavailable")
+            self.assertEqual(payload["daily_performance"]["reason"], "no_transcripts")
+            self.assertEqual(json.loads(cache.read_text()), payload)
+            self.assertEqual(cache.stat().st_mode & 0o777, 0o600)
+
+    def test_claude_speed_from_synthetic_response(self):
+        with tempfile.TemporaryDirectory() as directory:
+            projects = Path(directory) / "projects"
+            projects.mkdir()
+            transcript = projects / "sample.jsonl"
+            events = [
+                {"type": "api-request", "timestamp": "2000-01-01T11:59:55+08:00"},
+                {"type": "assistant", "timestamp": "2000-01-01T11:59:57+08:00",
+                 "message": {"id": "sample-response", "model": "sample-model", "usage": {
+                     "output_tokens": 80, "output_tokens_details": {"thinking_tokens": 20}}}},
+            ]
+            transcript.write_text("".join(json.dumps(event, separators=(",", ":")) + "\n"
+                                          for event in events))
+            result = subprocess.run(
+                [sys.executable, "-I", str(WORKERS / "claude_speed.py"),
+                 "--root", str(projects), "--now", "2000-01-01T12:00:00+08:00"],
+                capture_output=True, text=True, check=True,
+            )
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["status"], "ok")
+            self.assertEqual(payload["sample_count"], 1)
+            self.assertEqual(payload["tokens_per_second"], 30)
 
 
 if __name__ == "__main__":

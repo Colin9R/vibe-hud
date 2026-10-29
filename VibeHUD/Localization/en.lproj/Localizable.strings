@@ -51,6 +51,7 @@
 "quota.title.claude.sevenDay" = "Claude 7 days";
 "display.codexQuota" = "Codex quota";
 "display.codexSpeed" = "Codex speed";
+"display.claudeSpeed" = "Claude speed";
 "display.tiboEntry" = "Tibo entry hint";
 "menu.tiboNetworking" = "Check Tibo announcements online";
 "menu.tiboNotifications" = "Notify about Tibo announcements";

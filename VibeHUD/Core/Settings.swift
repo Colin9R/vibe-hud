@@ -62,6 +62,7 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 enum DisplayItem: String, CaseIterable, Identifiable {
     case claudeFiveHour = "claude5h"
     case claudeSevenDay = "claude7d"
+    case claudeSpeed = "claudeSpeed"
     case codexQuota = "codexQuota"
     case codexSpeed = "codexSpeed"
     case tiboEntry = "tiboEntry"
@@ -72,6 +73,7 @@ enum DisplayItem: String, CaseIterable, Identifiable {
         switch self {
         case .claudeFiveHour: "quota.title.claude.fiveHour"
         case .claudeSevenDay: "quota.title.claude.sevenDay"
+        case .claudeSpeed: "display.claudeSpeed"
         case .codexQuota: "display.codexQuota"
         case .codexSpeed: "display.codexSpeed"
         case .tiboEntry: "display.tiboEntry"
@@ -83,7 +85,7 @@ enum DisplayItem: String, CaseIterable, Identifiable {
         case .claudeFiveHour: "c5"
         case .claudeSevenDay: "c7"
         case .codexQuota: "x7"
-        case .codexSpeed, .tiboEntry: nil
+        case .codexSpeed, .claudeSpeed, .tiboEntry: nil
         }
     }
 }

@@ -144,6 +144,7 @@ struct NotchView: View {
             codexSpeed: preferences.isVisible(.codexSpeed),
             claude5h: preferences.isVisible(.claudeFiveHour),
             claude7d: preferences.isVisible(.claudeSevenDay),
+            claudeSpeed: preferences.isVisible(.claudeSpeed),
             tiboAlert: preferences.isVisible(.tiboEntry) && monitoringStore.tibo.shouldPresent
         )
     }
