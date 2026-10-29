@@ -18,6 +18,38 @@ def load_adapter():
 
 
 class HookStateAdapterTests(unittest.TestCase):
+    def test_permission_decisions_match_each_agent_protocol(self):
+        import json
+        for source in ("claude", "codex", "copilot", "vscodeagent"):
+            for decision in ("allow", "deny"):
+                with self.subTest(source=source, decision=decision):
+                    adapter = load_adapter()
+                    output = io.StringIO()
+                    sent = []
+                    def respond(state):
+                        sent.append(state)
+                        return {"decision": decision, "reason": "Audit denial"}
+                    payload = {"sessionId": "session", "toolName": "bash", "toolInput": {"command": "pwd"}}
+                    with mock.patch.object(sys, "argv", [str(SCRIPT), "--source", source, "--event", "permissionRequest"]), \
+                         mock.patch.object(sys, "stdin", io.StringIO(json.dumps(payload))), \
+                         mock.patch.object(sys, "stdout", output), \
+                         mock.patch.object(adapter, "send_event", side_effect=respond), \
+                         mock.patch.object(adapter, "find_agent_pid", return_value=None), \
+                         mock.patch.object(adapter, "get_tty", return_value=None), \
+                         mock.patch.object(adapter, "find_terminal_pid", return_value=None):
+                        with self.assertRaises(SystemExit) as exited:
+                            adapter.main()
+                    self.assertEqual(exited.exception.code, 0)
+                    result = json.loads(output.getvalue())
+                    if source in {"copilot", "vscodeagent"}:
+                        self.assertEqual(result["behavior"], decision)
+                        self.assertNotIn("hookSpecificOutput", result)
+                        self.assertTrue(sent[0]["tool_use_id"].startswith("copilot-permission-"))
+                        if decision == "deny":
+                            self.assertEqual(result["message"], "Audit denial")
+                    else:
+                        self.assertEqual(result["hookSpecificOutput"]["decision"]["behavior"], decision)
+
     def run_adapter(self, payload, *arguments):
         adapter = load_adapter()
         sent = []

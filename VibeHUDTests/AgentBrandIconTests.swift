@@ -37,7 +37,6 @@ struct AgentBrandIconTests {
             (SessionSource.copilot, "AgentGitHubCopilot"),
             (SessionSource.pi, "AgentPi"),
             (SessionSource.opencode, "AgentOpenCode"),
-            (SessionSource.qwenWork, "AgentQwenWork"),
         ]
     )
     func mapsPackagedAssets(source: SessionSource, assetName: String) {
@@ -90,7 +89,6 @@ struct AgentBrandIconTests {
             .pi,
             .opencode,
             .workbuddy,
-            .qwenWork,
         ]
     )
     @MainActor

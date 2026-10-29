@@ -2,6 +2,8 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
 
@@ -40,6 +42,7 @@ jobs:
             build
 
       - name: Verify tag version
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
@@ -49,6 +52,7 @@ jobs:
           test "$tag_version" = "$app_version"
 
       - name: Seal app bundle
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
           app_path="build/DerivedData/Build/Products/Release/vibe hud.app"
           codesign --force --deep --sign - \
@@ -57,6 +61,7 @@ jobs:
           codesign --verify --deep --strict "$app_path"
 
       - name: Package DMG
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
@@ -72,6 +77,7 @@ jobs:
             "release/vibe-hud-${TAG_NAME}.dmg"
 
       - name: Generate GitHub Release appcast
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           TAG_NAME: ${{ github.ref_name }}
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
@@ -116,6 +122,7 @@ jobs:
           swift scripts/verify-update.swift "$app_path" "$dmg_path" release/appcast.xml
 
       - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true

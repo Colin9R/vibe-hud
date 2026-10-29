@@ -54,13 +54,22 @@ ditto "$PROJECT_DIR/LICENSE" "$RESOURCES/VibeHUD-LICENSE"
 ditto "$PROJECT_DIR/LICENSE.md" "$RESOURCES/VibeHUD-LICENSE.md"
 ditto "$PROJECT_DIR/VibeHUD/Resources/usage-workers-LICENSE.txt" "$RESOURCES/usage-workers-LICENSE.txt"
 
-python3 - "$PROJECT_DIR/VibeHUD/Info.plist" "$APP/Contents/Info.plist" <<'PY'
+python3 - "$PROJECT_DIR/VibeHUD/Info.plist" "$PROJECT_DIR/VibeHUD.xcodeproj/project.pbxproj" "$APP/Contents/Info.plist" <<'PY'
 import os
 import plistlib
+import re
 import sys
 from pathlib import Path
 
-source, destination = map(Path, sys.argv[1:])
+source, project, destination = map(Path, sys.argv[1:])
+project_text = project.read_text()
+
+def project_setting(name):
+    values = set(re.findall(rf'\b{name}\s*=\s*([\w.]+)\s*;', project_text))
+    if len(values) != 1:
+        raise ValueError(f'Expected one {name} value in {project}: {values}')
+    return values.pop()
+
 if destination.exists():
     with destination.open('rb') as stream:
         info = plistlib.load(stream)
@@ -72,7 +81,8 @@ info.update(CFBundleIdentifier=os.environ.get('VIBE_HUD_LOCAL_BUNDLE_ID', 'com.e
             CFBundleName=os.environ.get('VIBE_HUD_LOCAL_NAME', 'Vibe HUD Local'),
             CFBundleDisplayName=os.environ.get('VIBE_HUD_LOCAL_NAME', 'Vibe HUD Local'),
             CFBundleIconFile='AppIcon', CFBundlePackageType='APPL',
-            CFBundleVersion='27', CFBundleShortVersionString='1.3.28',
+            CFBundleVersion=project_setting('CURRENT_PROJECT_VERSION'),
+            CFBundleShortVersionString=project_setting('MARKETING_VERSION'),
             LSMinimumSystemVersion='15.6', VibeHUDLocalBuild=True,
             VibeHUDRequiresTakeover=os.environ.get('VIBE_HUD_REQUIRE_TAKEOVER') == '1',
             SUEnableAutomaticChecks=False)

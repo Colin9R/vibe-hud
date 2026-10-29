@@ -169,9 +169,6 @@ struct NotchMenuView: View {
                     MenuToggleRow(source: .workbuddy, label: "WorkBuddy", isOn: hookState(for: .workBuddy), isNested: true) {
                         toggleHook(.workBuddy)
                     }
-                    MenuToggleRow(source: .qwenWork, label: "千问办公", isOn: hookState(for: .qwenWork), isNested: true) {
-                        toggleHook(.qwenWork)
-                    }
                 }
                 if let hookError { feedbackRow(hookError) }
 

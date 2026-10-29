@@ -695,6 +695,15 @@ actor SessionStore {
             Self.logger.debug("Clear reconciliation: kept \(session.chatItems.count) of \(previousCount) items")
         }
 
+        // OpenCode mutates existing message parts as tokens stream in. Refresh
+        // their display items while retaining hook-managed tool/approval state.
+        if session.source == .opencode && !payload.isIncremental {
+            session.chatItems.removeAll { item in
+                if case .toolCall = item.type { return false }
+                return true
+            }
+        }
+
         if payload.isIncremental {
             let existingIds = Set(session.chatItems.map { $0.id })
 
@@ -902,7 +911,9 @@ actor SessionStore {
             guard toolTracker.markSeen(tool.id) else { return nil }
 
             let isCompleted = completedTools.contains(tool.id)
-            let status: ToolStatus = isCompleted ? .success : .running
+            let status: ToolStatus = isCompleted
+                ? ToolCompletionResult.from(parserResult: toolResults[tool.id], structuredResult: structuredResults[tool.id]).status
+                : .running
 
             // Extract result text for completed tools
             var resultText: String? = nil
@@ -1104,6 +1115,7 @@ actor SessionStore {
         // Cancel existing sync
         cancelPendingSync(sessionId: sessionId)
         let transcriptPath = sessions[sessionId]?.transcriptPath
+        let refreshAllMessages = sessions[sessionId]?.source == .opencode
 
         // Schedule new debounced sync
         pendingSyncs[sessionId] = Task { [weak self, syncDebounceNs] in
@@ -1129,8 +1141,8 @@ actor SessionStore {
                 sessionId: sessionId,
                 cwd: cwd,
                 transcriptPath: transcriptPath,
-                messages: result.newMessages,
-                isIncremental: !result.clearDetected,
+                messages: refreshAllMessages ? result.allMessages : result.newMessages,
+                isIncremental: !refreshAllMessages && !result.clearDetected,
                 completedToolIds: result.completedToolIds,
                 toolResults: result.toolResults,
                 structuredResults: result.structuredResults
